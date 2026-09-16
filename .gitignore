@@ -1,0 +1,20 @@
+# Entorno
+.venv/
+__pycache__/
+*.pyc
+
+# Secretos
+.env
+.env.local
+.env.production
+
+# DATOS PERSONALES — nunca versionar
+salidas/
+*.pdf
+full_text_debug.txt
+proyecta_pension/historia_extraida.json
+proyecta_pension/resultado.json
+proyecta_pension/*.bak
+
+# macOS
+.DS_Store

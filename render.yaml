@@ -1,0 +1,25 @@
+# render.yaml — Render Blueprint (Infrastructure as Code)
+# Deploy: https://render.com/deploy → conecta el repo y Render lee este archivo.
+services:
+  - type: web
+    name: proyectapension
+    runtime: docker
+    plan: free          # cambiar a "starter" ($7/mes) para que no se duerma
+    healthCheckPath: /salud
+    envVars:
+      - key: APP_PASSWORD
+        generateValue: true
+      - key: FLASK_SECRET_KEY
+        generateValue: true
+      - key: ENTORNO
+        value: web
+      - key: HTTPS_ENABLED
+        value: "1"
+      - key: RETENCION_MINUTOS
+        value: "30"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: WEB_THREADS
+        value: "2"
+      - key: WEB_TIMEOUT
+        value: "180"

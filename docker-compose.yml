@@ -1,0 +1,23 @@
+# ProyectaPension — docker-compose para VPS
+# Uso:
+#   1. Copia .env.production como .env y ajusta APP_PASSWORD
+#   2. docker compose up -d --build
+#   3. Accede en http://TU_IP:8080
+#
+# Cuando tengas un dominio con DNS apuntando al VPS, descomenta el
+# servicio "caddy" de abajo para tener HTTPS automático con Let's Encrypt.
+
+services:
+  app:
+    build: .
+    container_name: proyectapension
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    tmpfs:
+      - /dev/shm:size=512m

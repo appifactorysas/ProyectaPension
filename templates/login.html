@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Acceso — ProyectaPension{% endblock %}
+{% block contenido %}
+
+<h1>Acceso restringido</h1>
+<p class="lead">Esta herramienta procesa historias laborales con datos personales.</p>
+
+<form class="tarjeta" method="post">
+  <div class="campo">
+    <label for="clave">Contraseña de acceso</label>
+    <input type="password" id="clave" name="clave" autocomplete="current-password" autofocus required>
+  </div>
+  <button type="submit">Entrar</button>
+</form>
+
+{% endblock %}

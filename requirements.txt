@@ -1,0 +1,10 @@
+# ProyectaPension — dependencias
+# Local:  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+#
+# cryptography se fija en 42.0.8 porque las versiones recientes no publican
+# wheel para Python 3.9 (macOS) y obligarían a compilar con Rust. Esa versión
+# trae wheels cp37-abi3, que sirven tanto en 3.9 como en el 3.12 del contenedor.
+cryptography==42.0.8
+pdfplumber>=0.11
+Flask>=3.0
+gunicorn>=22.0

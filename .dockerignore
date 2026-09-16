@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+salidas/
+*.pdf
+full_text_debug.txt
+proyecta_pension/historia_extraida.json
+proyecta_pension/resultado.json
+proyecta_pension/*.bak
+ProyectaPension_Dashboard.html
+.DS_Store
+.git/

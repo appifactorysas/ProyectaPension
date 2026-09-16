@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block titulo %}Informe listo — {{ r.afiliado.nombre.title() }}{% endblock %}
+{% block contenido %}
+{% set ret = r.retiro_edad %}
+
+<h1>Informe listo</h1>
+<p class="lead">{{ r.afiliado.nombre.title() }} · cálculo del {{ fecha_corta(r.afiliado.fecha_calculo) }}</p>
+
+<div class="tarjeta">
+  <div class="resumen">
+    <div class="dato">
+      <div class="dato-lbl">Si deja de cotizar hoy</div>
+      <div class="dato-val num">{{ money(r.hoy.pension_mensual) }}</div>
+      <div class="dato-pie">{{ num(r.hoy.semanas_cotizadas, 2) }} semanas · {{ pct(r.hoy.tasa_reemplazo) }}</div>
+    </div>
+    <div class="dato destacado">
+      <div class="dato-lbl">Al cumplir {{ r.afiliado.edad_pension }} años</div>
+      <div class="dato-val num">{{ money(r.futura.pension_mensual) }}</div>
+      <div class="dato-pie">{{ num(r.futura.semanas_cotizadas, 2) }} semanas · {{ pct(r.futura.tasa_reemplazo) }}</div>
+    </div>
+    <div class="dato">
+      <div class="dato-lbl">Si cotiza {{ ret.meses_extra }} meses más</div>
+      <div class="dato-val num">{{ money(ret.escenario_b.pension_mensual) }}</div>
+      <div class="dato-pie">{{ num(ret.escenario_b.semanas_cotizadas, 2) }} semanas · {{ pct(ret.escenario_b.tasa_reemplazo) }}</div>
+    </div>
+  </div>
+
+  <a class="descargar" href="{{ url_for('informe', token=token) }}" target="_blank" rel="noopener">
+    Abrir el informe completo en PDF
+  </a>
+  <p class="ayuda" style="text-align:center">6 páginas · las cuatro secciones, los supuestos y las advertencias legales</p>
+</div>
+
+{% if r.reforma_2024 is defined %}
+<div class="info-reforma">
+  <strong>Ley 2381 de 2024 (reforma pensional)</strong>
+  <ul>
+    {% if r.reforma_2024.en_regimen_transicion %}
+    <li>Régimen de transición: <strong>Sí aplica</strong> ({{ num(r.reforma_2024.semanas_al_1jul2025, 0) }} sem
+        &ge; {{ r.reforma_2024.umbral_transicion }} requeridas al 1-jul-2025). Continúa 100% en prima media.</li>
+    {% else %}
+    <li>Régimen de transición: <strong>No aplica</strong> ({{ num(r.reforma_2024.semanas_al_1jul2025, 0) }} sem
+        &lt; {{ r.reforma_2024.umbral_transicion }} al 1-jul-2025). Aplica el sistema de dos componentes.</li>
+    {% endif %}
+    <li>Semanas mínimas requeridas: {{ num(r.reforma_2024.semanas_minimas_requeridas, 0) }}
+        ({{ r.afiliado.sexo == 'M' and 'hombres, fijo' or 'mujeres, año ' ~ r.afiliado.fecha_pension[:4] }})</li>
+    <li>Mesadas anuales: {{ r.reforma_2024.mesadas_anuales }} (12 + prima de diciembre)</li>
+    <li>Pensión anual proyectada: {{ money(r.futura.pension_anual) }}</li>
+    {% if r.reforma_2024.prestacion_anticipada %}
+    <li>Prestación anticipada (Art.&nbsp;37): proporcional
+        {{ pct(r.reforma_2024.prestacion_anticipada.proporcion * 100) }}
+        &rarr; {{ money(r.reforma_2024.prestacion_anticipada.pension_mensual_proporcional) }}/mes</li>
+    {% endif %}
+  </ul>
+</div>
+{% endif %}
+
+{% if r.escenarios|length > 1 %}
+<div class="info-seccion">
+  <strong>Multiescenario: ¿cuándo conviene pensionarse?</strong>
+  <table class="tabla-escenarios">
+    <thead>
+      <tr><th>Escenario</th><th>Fecha</th><th>Semanas</th><th>Tasa</th><th>Pensión bruta</th><th>Pensión neta</th></tr>
+    </thead>
+    <tbody>
+    {% for e in r.escenarios %}
+      <tr{% if e.meses == r.futura.meses_restantes %} class="fila-destacada"{% endif %}>
+        <td>{{ e.label }}</td>
+        <td class="num">{{ fecha_corta(e.fecha) }}</td>
+        <td class="num">{{ num(e.semanas, 0) }}</td>
+        <td class="num">{{ pct(e.tasa) }}</td>
+        <td class="num">{{ money(e.pension_bruta) }}</td>
+        <td class="num"><strong>{{ money(e.pension_neta) }}</strong></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="ayuda">Pensión neta = bruta − 12% aporte a salud. Las pensiones de Colpensiones no pagan retención en la fuente (exentas hasta 1.000 UVT).</p>
+</div>
+{% endif %}
+
+{% if r.pension_deseada %}
+<div class="info-seccion">
+  <strong>Pensión deseada: {{ money(r.pension_deseada.pension_deseada) }}/mes</strong>
+  {% if r.pension_deseada.ya_alcanzada %}
+  <p>Ya la alcanza con la cotización actual. Pensión proyectada: <strong>{{ money(r.pension_deseada.pension_proyectada) }}</strong>.</p>
+  {% elif not r.pension_deseada.alcanzable %}
+  <p>No alcanzable ni con el tope de 25 SMLMV. Pensión máxima posible: <strong>{{ money(r.pension_deseada.pension_maxima) }}</strong>.</p>
+  {% else %}
+  <ul>
+    <li>IBC necesario: <strong>{{ money(r.pension_deseada.ibc_necesario) }}</strong> (+{{ pct(r.pension_deseada.incremento_ibc_pct, 1) }} sobre el actual)</li>
+    <li>Aporte mensual necesario (16%): {{ money(r.pension_deseada.aporte_mensual_necesario) }}
+        (hoy paga {{ money(r.pension_deseada.aporte_mensual_actual) }})</li>
+    <li>Aporte adicional mensual: <strong>{{ money(r.pension_deseada.aporte_adicional_mensual) }}</strong></li>
+    <li>Pensión neta resultante: {{ money(r.pension_deseada.pension_deseada_neta) }}/mes</li>
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if r.solidaridad and r.solidaridad.aplica %}
+<div class="info-seccion">
+  <strong>Cotización adicional al Fondo de Solidaridad</strong>
+  <p>Por su IBC de {{ money(r.hoy.ultimo_salario) }} ({{ num(r.hoy.ultimo_salario / r.hoy.smlmv, 1) }} SMLMV),
+     paga <strong>{{ money(r.solidaridad.valor_mensual) }}/mes</strong> adicionales
+     ({{ money(r.solidaridad.valor_anual) }}/año).
+  </p>
+</div>
+{% endif %}
+
+{% if r.sobrevivientes %}
+<div class="info-seccion">
+  <strong>Pensión de sobrevivientes</strong>
+  <ul>
+    <li>Si fallece como pensionado: beneficiarios reciben <strong>{{ money(r.sobrevivientes.como_pensionado) }}/mes</strong> (100% de la mesada)</li>
+    <li>Si fallece como afiliado activo: <strong>{{ money(r.sobrevivientes.como_activo) }}/mes</strong>
+        (tasa del {{ pct(r.sobrevivientes.tasa_activo) }}). Requisito: {{ r.sobrevivientes.requisito }}</li>
+  </ul>
+</div>
+{% endif %}
+
+{% if r.opcion_dinero %}
+<div class="info-seccion">
+  <strong>¿Y si prefiero el dinero?</strong>
+  {% if r.opcion_dinero.cumple_semanas %}
+  <p>Con {{ num(r.opcion_dinero.semanas_proyectadas, 0) }} semanas proyectadas (mínimo requerido: {{ num(r.opcion_dinero.semanas_minimas, 0) }}),
+     <strong>cumple los requisitos para pensión</strong>. En Colpensiones (régimen de prima media)
+     <strong>no existe la opción de recibir un pago único</strong> en lugar de la mesada vitalicia.
+     El derecho adquirido es a la pensión mensual.</p>
+  <p>La indemnización sustitutiva (Art.&nbsp;37 Ley&nbsp;100/1993) solo aplica a quien llega a la edad
+     <em>sin</em> completar las semanas mínimas.</p>
+  <p style="margin-top:8px;font-size:13px;color:var(--tenue)">A modo educativo, si hipotéticamente no cumpliera las semanas:</p>
+  <ul>
+    <li>Indemnización sustitutiva estimada: <strong>{{ money(r.opcion_dinero.indemnizacion.valor) }}</strong>
+        (IBL semanal {{ money(r.opcion_dinero.indemnizacion.ibl_semanal) }} × {{ num(r.opcion_dinero.indemnizacion.semanas, 0) }} sem × {{ pct(r.opcion_dinero.indemnizacion.tasa_promedio_ponderada, 1) }})</li>
+    <li>Pensión neta acumulada de por vida: <strong>{{ money(r.opcion_dinero.valor_vida_neto) }}</strong></li>
+    <li>La pensión vale <strong>{{ num(r.opcion_dinero.ratio_pension_vs_indem, 1) }}×</strong> más que la indemnización</li>
+  </ul>
+  <p><strong>Proceso para solicitar la pensión:</strong></p>
+  <ol>
+    {% for paso in r.opcion_dinero.proceso_pension %}
+    <li>{{ paso }}</li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p>Con {{ num(r.opcion_dinero.semanas_proyectadas, 0) }} semanas proyectadas <strong>no alcanza</strong>
+     las {{ num(r.opcion_dinero.semanas_minimas, 0) }} requeridas. No hay derecho a la pensión mensual,
+     pero sí a la <strong>indemnización sustitutiva</strong> (Art.&nbsp;37 Ley&nbsp;100/1993).</p>
+  <ul>
+    <li>Valor estimado de la indemnización: <strong>{{ money(r.opcion_dinero.indemnizacion.valor) }}</strong></li>
+    <li>Cálculo: IBL semanal {{ money(r.opcion_dinero.indemnizacion.ibl_semanal) }} × {{ num(r.opcion_dinero.indemnizacion.semanas, 0) }} sem × {{ pct(r.opcion_dinero.indemnizacion.tasa_promedio_ponderada, 1) }}</li>
+  </ul>
+  <p><strong>Proceso para solicitar la indemnización sustitutiva:</strong></p>
+  <ol>
+    {% for paso in r.opcion_dinero.proceso_indemnizacion %}
+    <li>{{ paso }}</li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if r.valor_vida %}
+<div class="info-seccion">
+  <strong>Riqueza pensional (valor acumulado de por vida)</strong>
+  <ul>
+    <li>Expectativa de vida: {{ num(r.valor_vida.expectativa_anos, 0) }} años adicionales (hasta ~{{ num(r.valor_vida.edad_esperada, 0) }} años)</li>
+    <li>Total de mesadas estimadas: {{ num(r.valor_vida.total_mesadas, 0) }}</li>
+    <li>Bruto acumulado: {{ money(r.valor_vida.bruto_acumulado) }}</li>
+    <li>Neto acumulado (después de salud): <strong>{{ money(r.valor_vida.neto_acumulado) }}</strong></li>
+    <li>Total aportado durante la vida laboral: {{ money(r.valor_vida.total_aportado) }}</li>
+    <li>Multiplicador: <strong>{{ num(r.valor_vida.multiplicador, 1) }}x</strong> — por cada peso aportado, recibe {{ num(r.valor_vida.multiplicador, 1) }} pesos en mesadas</li>
+  </ul>
+</div>
+{% endif %}
+
+<div class="aviso">
+  <strong>Conclusión de la Sección&nbsp;4.</strong>
+  {% if ret.anios_equilibrio_real and ret.anios_equilibrio_real >= 10 %}
+    Esperar {{ ret.meses_extra }} meses más solo se recupera después de
+    <span class="num">{{ num(ret.anios_equilibrio_real, 1) }} años</span> cobrando la mesada más alta.
+    Conviene pensionarse el mismo día que cumple la edad.
+  {% elif ret.anios_equilibrio_real %}
+    Esperar {{ ret.meses_extra }} meses más se recupera en
+    <span class="num">{{ num(ret.anios_equilibrio_real, 1) }} años</span> de mesada.
+  {% else %}
+    Seguir cotizando después de cumplir la edad no mejora la mesada en términos reales.
+  {% endif %}
+</div>
+
+<div class="acciones">
+  <a href="{{ url_for('index') }}">← Procesar otro reporte</a>
+  <form method="post" action="{{ url_for('borrar', token=token) }}"
+        onsubmit="return confirm('Se borrarán del disco el informe y los datos extraídos de esta corrida. ¿Continuar?')">
+    <button type="submit" class="enlace-peligro">Borrar estos archivos del disco</button>
+  </form>
+</div>
+
+<style>
+.resumen{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--linea);
+         border:1px solid var(--linea); margin-bottom:28px}
+.dato{background:#fff; padding:20px 16px; text-align:center}
+.dato.destacado{background:var(--crema)}
+.dato-lbl{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--tenue); font-weight:600}
+.dato-val{font-size:23px; font-weight:600; margin:9px 0 5px; letter-spacing:-.02em}
+.dato.destacado .dato-val{color:var(--oro)}
+.dato-pie{font-size:12.5px; color:var(--tenue); font-style:italic}
+.descargar{display:block; padding:15px; text-align:center; font-size:16px; font-weight:600;
+           color:#fff; background:var(--tinta); border-radius:3px; text-decoration:none}
+.descargar:hover{background:#0d1622}
+.acciones{display:flex; justify-content:space-between; align-items:center; margin-top:28px; font-size:14.5px}
+.acciones form{margin:0}
+.enlace-peligro{width:auto; background:none; border:none; color:var(--rojo); font-size:14.5px;
+                font-family:inherit; padding:0; cursor:pointer; text-decoration:underline; font-weight:400}
+.enlace-peligro:hover{background:none; color:#7a2a20}
+.info-reforma,.info-seccion{background:#f8f6f0; border:1px solid var(--linea); padding:18px 22px; margin-bottom:22px; font-size:14.5px; line-height:1.65}
+.info-reforma strong,.info-seccion strong{display:block; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--tenue); margin-bottom:8px}
+.info-reforma ul,.info-seccion ul{margin:0; padding-left:18px}
+.info-reforma li,.info-seccion li{margin-bottom:4px}
+.tabla-escenarios{width:100%; border-collapse:collapse; font-size:13.5px; margin:10px 0}
+.tabla-escenarios th{text-align:left; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--tenue); padding:6px 8px; border-bottom:1.5px solid var(--linea)}
+.tabla-escenarios td{padding:7px 8px; border-bottom:1px solid var(--linea)}
+.tabla-escenarios .fila-destacada{background:var(--crema)}
+.tabla-escenarios .fila-destacada td{font-weight:600}
+@media(max-width:560px){.resumen{grid-template-columns:1fr}.acciones{flex-direction:column; gap:16px; align-items:flex-start}.tabla-escenarios{font-size:12px}.tabla-escenarios th,.tabla-escenarios td{padding:5px 4px}}
+</style>
+{% endblock %}

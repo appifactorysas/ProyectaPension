@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block titulo %}ProyectaPension — Generar informe{% endblock %}
+{% block contenido %}
+
+<h1>Informe de<br>proyección pensional</h1>
+<p class="lead">Sube el reporte de semanas cotizadas de Colpensiones y recibe el informe completo en PDF.</p>
+
+<form class="tarjeta" method="post" action="{{ url_for('procesar') }}"
+      enctype="multipart/form-data" id="formulario">
+
+  <div class="campo">
+    <label for="pdf">Historia laboral (PDF)</label>
+    <div class="zona" id="zona">
+      <div class="zona-tit" id="zona-tit">Arrastra el PDF aquí</div>
+      <div class="zona-sub" id="zona-sub">o haz clic para buscarlo · máximo {{ max_mb }} MB</div>
+    </div>
+    <input type="file" id="pdf" name="pdf" accept="application/pdf,.pdf" hidden required>
+    <p class="ayuda">Es el «Reporte de semanas cotizadas en pensiones» que se descarga del portal de Colpensiones.</p>
+  </div>
+
+  <div class="campo">
+    <label for="password">Contraseña del PDF</label>
+    <input type="password" id="password" name="password" autocomplete="off"
+           placeholder="Número de cédula, sin puntos">
+    <p class="ayuda">Colpensiones protege el reporte con la cédula del afiliado. Déjalo vacío si el PDF no tiene clave.</p>
+  </div>
+
+  <div class="fila">
+    <div class="campo">
+      <label for="sexo">Sexo del afiliado</label>
+      <select id="sexo" name="sexo">
+        <option value="M">Masculino — 62 años, 1.300 semanas</option>
+        <option value="F">Femenino — 57 años, semanas progresivas</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label for="fecha_calculo">Fecha del cálculo</label>
+      <input type="date" id="fecha_calculo" name="fecha_calculo" value="{{ hoy }}">
+    </div>
+  </div>
+
+  <div class="fila">
+    <div class="campo">
+      <label for="pension_deseada">Pensión deseada (mensual, opcional)</label>
+      <input type="text" id="pension_deseada" name="pension_deseada"
+             inputmode="numeric" placeholder="Ej: 8.000.000"
+             autocomplete="off">
+      <p class="ayuda">¿Cuánto quiere recibir de mesada? Calculamos qué base de cotización necesita.</p>
+    </div>
+    <div class="campo" id="campo-hijos">
+      <label for="num_hijos">Número de hijos (mujeres)</label>
+      <select id="num_hijos" name="num_hijos">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3 o más</option>
+      </select>
+      <p class="ayuda">Art. 36 Ley 2381/2024: reduce 50 semanas por hijo (máx. 3, piso 850).</p>
+    </div>
+  </div>
+
+  <button type="submit" id="enviar">Generar informe en PDF</button>
+</form>
+
+<div class="aviso">
+  {% if entorno == 'web' %}
+    <strong>Manejo de datos.</strong> El PDF que subes se borra del servidor apenas termina la
+    extracción. El informe y los datos calculados se eliminan automáticamente
+    {% if retencion > 0 %}a los <span class="num">{{ retencion }}</span> minutos{% else %}al reiniciar el servicio{% endif %},
+    y puedes borrarlos antes con un clic. Nada se comparte con terceros ni queda indexado.
+  {% else %}
+    <strong>Tus datos no salen de este computador.</strong> El servidor corre localmente en
+    <span class="num">127.0.0.1</span>. El PDF que subes se borra apenas termina la extracción y los
+    resultados quedan en la carpeta <span class="num">salidas/</span>, que puedes vaciar cuando quieras.
+  {% endif %}
+</div>
+
+<script>
+const zona = document.getElementById('zona');
+const input = document.getElementById('pdf');
+const tit = document.getElementById('zona-tit');
+const sub = document.getElementById('zona-sub');
+
+zona.addEventListener('click', () => input.click());
+['dragenter','dragover'].forEach(e => zona.addEventListener(e, ev => {
+  ev.preventDefault(); zona.classList.add('sobre');
+}));
+['dragleave','drop'].forEach(e => zona.addEventListener(e, ev => {
+  ev.preventDefault(); zona.classList.remove('sobre');
+}));
+zona.addEventListener('drop', ev => {
+  if (ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; mostrar(); }
+});
+input.addEventListener('change', mostrar);
+
+function mostrar() {
+  const f = input.files[0];
+  if (!f) return;
+  zona.classList.add('cargado');
+  tit.textContent = f.name;
+  sub.textContent = (f.size / 1048576).toFixed(1) + ' MB · haz clic para cambiarlo';
+}
+
+document.getElementById('formulario').addEventListener('submit', ev => {
+  if (!input.files.length) { ev.preventDefault(); return; }
+  const b = document.getElementById('enviar');
+  b.disabled = true;
+  b.textContent = 'Procesando el reporte y armando el PDF…';
+});
+</script>
+{% endblock %}
