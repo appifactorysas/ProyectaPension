@@ -42,6 +42,7 @@ MAX_INTENTOS = int(os.environ.get('MAX_INTENTOS_LOGIN', '8'))
 BLOQUEO_SEG = int(os.environ.get('BLOQUEO_LOGIN_SEGUNDOS', '900'))
 
 ENTORNO = os.environ.get('ENTORNO', 'local').lower()   # 'local' | 'web'
+APP_USERNAME = os.environ.get('APP_USERNAME', '')
 APP_PASSWORD = os.environ.get('APP_PASSWORD', '')
 HTTPS_ENABLED = os.environ.get('HTTPS_ENABLED', '1').lower() not in ('0', 'false', 'no')
 
@@ -190,20 +191,22 @@ def login():
         if bloqueado(ip):
             flash('Demasiados intentos fallidos. Espera unos minutos.')
             return render_template('login.html'), 429
+        usuario = request.form.get('usuario', '')
         clave = request.form.get('clave', '')
-        if hmac.compare_digest(clave, APP_PASSWORD):
+        usuario_ok = (not APP_USERNAME) or hmac.compare_digest(usuario, APP_USERNAME)
+        clave_ok = hmac.compare_digest(clave, APP_PASSWORD)
+        if usuario_ok and clave_ok:
             session.clear()
             session['autorizado'] = True
             session.permanent = True
             limpiar_intentos(ip)
             destino = request.args.get('siguiente', '')
-            # Solo rutas internas: evita redirección abierta.
             if not destino.startswith('/') or destino.startswith('//'):
                 destino = url_for('index')
             return redirect(destino)
         fallo_login(ip)
         app.logger.warning('Intento de acceso fallido desde %s', ip)
-        flash('Contraseña incorrecta.')
+        flash('Usuario o contraseña incorrectos.')
     return render_template('login.html')
 
 
