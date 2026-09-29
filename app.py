@@ -31,26 +31,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pro
 import extraer_historia          # noqa: E402
 import motor_pension             # noqa: E402
 import generar_pdf               # noqa: E402
+import db                        # noqa: E402
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SALIDAS = os.environ.get('SALIDAS_DIR', os.path.join(BASE_DIR, 'salidas'))
 MAX_MB = int(os.environ.get('MAX_UPLOAD_MB', '25'))
-# Los resultados llevan datos personales: se borran solos pasado este tiempo.
 RETENCION_MIN = int(os.environ.get('RETENCION_MINUTOS', '30'))
-# Intentos de contraseña permitidos por IP antes de bloquear temporalmente.
 MAX_INTENTOS = int(os.environ.get('MAX_INTENTOS_LOGIN', '8'))
 BLOQUEO_SEG = int(os.environ.get('BLOQUEO_LOGIN_SEGUNDOS', '900'))
 
-ENTORNO = os.environ.get('ENTORNO', 'local').lower()   # 'local' | 'web'
-APP_USERNAME = os.environ.get('APP_USERNAME', '')
-APP_PASSWORD = os.environ.get('APP_PASSWORD', '')
+ENTORNO = os.environ.get('ENTORNO', 'local').lower()
+APP_USERNAME = os.environ.get('APP_USERNAME', 'admin')
+APP_PASSWORD = os.environ.get('APP_PASSWORD', 'admin')
 HTTPS_ENABLED = os.environ.get('HTTPS_ENABLED', '1').lower() not in ('0', 'false', 'no')
-
-if ENTORNO == 'web' and not APP_PASSWORD:
-    logging.warning(
-        'ENTORNO=web sin APP_PASSWORD: la aplicación queda abierta sin contraseña. '
-        'Los datos personales se siguen purgando por retención, pero cualquiera '
-        'con la URL puede subir un PDF.')
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
@@ -62,16 +55,18 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=60 * 60 * 8,
 )
 if ENTORNO == 'web':
-    # Detrás de Cloud Run / Fly / Render / Nginx: respetar X-Forwarded-*
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
 
-# Los intentos fallidos se cuentan en un archivo compartido: gunicorn corre
-# varios workers y un dict en memoria haría que cada uno contara por su lado.
-# Nota: esto protege una instancia. Si el servicio escala a varias réplicas,
-# el límite global debe ponerse en el WAF o rate limiter del proveedor.
+# ── Inicializar base de datos ────────────────────────────────────────
+
+db.init_db()
+db.crear_admin_inicial(APP_USERNAME, APP_PASSWORD)
+
+# ── Brute-force protection ──────────────────────────────────────────
+
 _ARCHIVO_INTENTOS = os.path.join(SALIDAS, '.intentos.json')
 _lock = threading.Lock()
 
@@ -94,9 +89,7 @@ def _escribir_intentos(d):
         pass
 
 
-# ---------------------------------------------------------------------
-# Retención: los resultados con datos personales no se quedan en disco
-# ---------------------------------------------------------------------
+# ── Retención de datos personales ────────────────────────────────────
 
 def purgar_antiguos():
     if RETENCION_MIN <= 0 or not os.path.isdir(SALIDAS):
@@ -117,6 +110,19 @@ def purgar_antiguos():
 @app.before_request
 def _antes():
     purgar_antiguos()
+    g.user = None
+    uid = session.get('user_id')
+    if uid:
+        user = db.get_usuario(uid)
+        if user and user['is_active']:
+            g.user = user
+        else:
+            session.clear()
+
+
+@app.context_processor
+def _inject_user():
+    return {'current_user': g.get('user')}
 
 
 @app.after_request
@@ -124,16 +130,13 @@ def _cabeceras(resp):
     resp.headers['X-Content-Type-Options'] = 'nosniff'
     resp.headers['X-Frame-Options'] = 'DENY'
     resp.headers['Referrer-Policy'] = 'no-referrer'
-    # Nada de esto debe quedar cacheado: son datos personales.
     resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
     if ENTORNO == 'web' and HTTPS_ENABLED:
         resp.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return resp
 
 
-# ---------------------------------------------------------------------
-# Control de acceso
-# ---------------------------------------------------------------------
+# ── Control de acceso ────────────────────────────────────────────────
 
 def ip_cliente():
     return (request.headers.get('X-Forwarded-For', '').split(',')[0].strip()
@@ -158,7 +161,6 @@ def bloqueado(ip):
 def fallo_login(ip):
     with _lock:
         d = _leer_intentos()
-        # Purga registros vencidos para que el archivo no crezca sin control.
         ahora = time.time()
         d = {k: v for k, v in d.items() if ahora - v[1] < BLOQUEO_SEG}
         conteo = d.get(ip, [0, ahora])[0]
@@ -176,15 +178,28 @@ def limpiar_intentos(ip):
 def requiere_acceso(f):
     @wraps(f)
     def envoltura(*a, **kw):
-        if not APP_PASSWORD or session.get('autorizado'):
-            return f(*a, **kw)
-        return redirect(url_for('login', siguiente=request.path))
+        if not g.user:
+            return redirect(url_for('login', siguiente=request.path))
+        return f(*a, **kw)
     return envoltura
 
 
+def requiere_admin(f):
+    @wraps(f)
+    def envoltura(*a, **kw):
+        if not g.user:
+            return redirect(url_for('login', siguiente=request.path))
+        if not g.user['is_admin']:
+            abort(403)
+        return f(*a, **kw)
+    return envoltura
+
+
+# ── Autenticación ────────────────────────────────────────────────────
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if not APP_PASSWORD:
+    if g.user:
         return redirect(url_for('index'))
     if request.method == 'POST':
         ip = ip_cliente()
@@ -193,11 +208,13 @@ def login():
             return render_template('login.html'), 429
         usuario = request.form.get('usuario', '')
         clave = request.form.get('clave', '')
-        usuario_ok = (not APP_USERNAME) or hmac.compare_digest(usuario, APP_USERNAME)
-        clave_ok = hmac.compare_digest(clave, APP_PASSWORD)
-        if usuario_ok and clave_ok:
+        user = db.autenticar(usuario, clave)
+        if user:
             session.clear()
-            session['autorizado'] = True
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['is_admin'] = bool(user['is_admin'])
+            session['nombre'] = user['nombre']
             session.permanent = True
             limpiar_intentos(ip)
             destino = request.args.get('siguiente', '')
@@ -222,12 +239,9 @@ def salud():
             'hora': datetime.now(timezone.utc).isoformat()}
 
 
-# ---------------------------------------------------------------------
-# Pipeline
-# ---------------------------------------------------------------------
+# ── Pipeline ─────────────────────────────────────────────────────────
 
 def dir_corrida(token):
-    """Ruta de la corrida, validando el token para evitar path traversal."""
     if not token or len(token) != 32 or not all(c in '0123456789abcdef' for c in token):
         abort(404)
     d = os.path.join(SALIDAS, token)
@@ -239,14 +253,19 @@ def dir_corrida(token):
 @app.route('/')
 @requiere_acceso
 def index():
+    restantes = db.consultas_restantes(g.user['id'])
     return render_template('index.html', max_mb=MAX_MB, hoy=date.today().isoformat(),
                            retencion=RETENCION_MIN, entorno=ENTORNO,
-                           protegido=bool(APP_PASSWORD))
+                           consultas_restantes=restantes)
 
 
 @app.route('/procesar', methods=['POST'])
 @requiere_acceso
 def procesar():
+    if not db.puede_consultar(g.user['id']):
+        flash('Has alcanzado el límite de consultas. Contacta al administrador.')
+        return redirect(url_for('index'))
+
     archivo = request.files.get('pdf')
     password = (request.form.get('password') or '').strip()
     sexo = request.form.get('sexo', 'M')
@@ -277,7 +296,6 @@ def procesar():
     archivo.save(pdf_entrada)
 
     try:
-        # 1 · Extracción del PDF de Colpensiones
         try:
             datos = extraer_historia.extraer(pdf_entrada, password)
         except Exception as e:
@@ -300,7 +318,6 @@ def procesar():
         with open(json_datos, 'w', encoding='utf-8') as f:
             json.dump(datos, f, indent=2, ensure_ascii=False)
 
-        # 2 · Motor de cálculo
         fh = date.fromisoformat(fecha_calculo) if fecha_calculo else None
         resultado = motor_pension.analizar(json_datos, sexo=sexo, fecha_hoy=fh,
                                               num_hijos=num_hijos,
@@ -309,18 +326,17 @@ def procesar():
         with open(json_resultado, 'w', encoding='utf-8') as f:
             json.dump(resultado, f, indent=2, ensure_ascii=False)
 
-        # 3 · Informe en PDF
         generar_pdf.generar(json_resultado, os.path.join(destino, 'Informe_Pension.pdf'))
+
+        db.registrar_uso(g.user['id'], tipo='consulta')
 
     except Exception as e:
         shutil.rmtree(destino, ignore_errors=True)
-        # Nunca registrar el contenido del reporte: solo el tipo de fallo.
         app.logger.error('Fallo procesando una carga: %s', traceback.format_exc(limit=3))
         flash(str(e) if isinstance(e, ValueError) else
               'Error inesperado generando el informe. Revisa que el PDF sea el reporte correcto.')
         return redirect(url_for('index'))
     finally:
-        # El PDF de origen tiene datos personales y ya no hace falta.
         if os.path.exists(pdf_entrada):
             os.unlink(pdf_entrada)
 
@@ -354,9 +370,113 @@ def borrar(token):
     return redirect(url_for('index'))
 
 
+# ── Panel de administración ──────────────────────────────────────────
+
+@app.route('/admin')
+@requiere_admin
+def admin_dashboard():
+    stats = db.stats_uso()
+    return render_template('admin.html', stats=stats)
+
+
+@app.route('/admin/usuarios')
+@requiere_admin
+def admin_usuarios():
+    usuarios = db.listar_usuarios()
+    return render_template('admin_usuarios.html', usuarios=usuarios)
+
+
+@app.route('/admin/usuarios/nuevo', methods=['GET', 'POST'])
+@requiere_admin
+def admin_usuario_nuevo():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        nombre = request.form.get('nombre', '').strip()
+        email = request.form.get('email', '').strip()
+        is_admin = request.form.get('is_admin') == '1'
+        max_consultas = int(request.form.get('max_consultas', '0') or '0')
+        if not username or not password:
+            flash('Usuario y contraseña son obligatorios.')
+            return render_template('admin_usuario_form.html', usuario=None)
+        if db.crear_usuario(username, password, nombre, email, is_admin, max_consultas):
+            flash(f'Usuario "{username}" creado.')
+            return redirect(url_for('admin_usuarios'))
+        flash(f'El usuario "{username}" ya existe.')
+    return render_template('admin_usuario_form.html', usuario=None)
+
+
+@app.route('/admin/usuarios/<int:uid>', methods=['GET', 'POST'])
+@requiere_admin
+def admin_usuario_editar(uid):
+    usuario = db.get_usuario(uid)
+    if not usuario:
+        abort(404)
+    if request.method == 'POST':
+        kwargs = {
+            'username': request.form.get('username', '').strip(),
+            'nombre': request.form.get('nombre', '').strip(),
+            'email': request.form.get('email', '').strip(),
+            'is_admin': 1 if request.form.get('is_admin') == '1' else 0,
+            'is_active': 1 if request.form.get('is_active') == '1' else 0,
+            'max_consultas': int(request.form.get('max_consultas', '0') or '0'),
+        }
+        pw = request.form.get('password', '').strip()
+        if pw:
+            kwargs['password'] = pw
+        if not kwargs['username']:
+            flash('El nombre de usuario es obligatorio.')
+        elif db.actualizar_usuario(uid, **kwargs):
+            flash('Usuario actualizado.')
+            return redirect(url_for('admin_usuarios'))
+        else:
+            flash('Ese nombre de usuario ya está en uso.')
+        usuario = db.get_usuario(uid)
+    usuario['consultas_usadas'] = db.consultas_usadas(uid)
+    return render_template('admin_usuario_form.html', usuario=usuario)
+
+
+@app.route('/admin/usuarios/<int:uid>/toggle', methods=['POST'])
+@requiere_admin
+def admin_usuario_toggle(uid):
+    usuario = db.get_usuario(uid)
+    if not usuario or uid == g.user['id']:
+        abort(400)
+    db.actualizar_usuario(uid, is_active=0 if usuario['is_active'] else 1)
+    estado = 'activado' if not usuario['is_active'] else 'desactivado'
+    flash(f'Usuario "{usuario["username"]}" {estado}.')
+    return redirect(url_for('admin_usuarios'))
+
+
+@app.route('/admin/usuarios/<int:uid>/eliminar', methods=['POST'])
+@requiere_admin
+def admin_usuario_eliminar(uid):
+    usuario = db.get_usuario(uid)
+    if not usuario or uid == g.user['id']:
+        abort(400)
+    db.eliminar_usuario(uid)
+    flash(f'Usuario "{usuario["username"]}" eliminado.')
+    return redirect(url_for('admin_usuarios'))
+
+
+@app.route('/admin/uso')
+@requiere_admin
+def admin_uso():
+    stats = db.stats_uso()
+    return render_template('admin_uso.html', stats=stats)
+
+
+# ── Errores ──────────────────────────────────────────────────────────
+
 @app.errorhandler(413)
 def demasiado_grande(e):
     flash(f'El archivo supera el límite de {MAX_MB} MB.')
+    return redirect(url_for('index')), 302
+
+
+@app.errorhandler(403)
+def prohibido(e):
+    flash('No tienes permiso para acceder a esa sección.')
     return redirect(url_for('index')), 302
 
 

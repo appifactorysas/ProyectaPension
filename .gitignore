@@ -8,6 +8,9 @@ __pycache__/
 .env.local
 .env.production
 
+# Base de datos de usuarios
+data/
+
 # DATOS PERSONALES — nunca versionar
 salidas/
 *.pdf

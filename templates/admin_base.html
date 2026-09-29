@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block contenido %}
+<nav class="admin-tabs">
+  <a href="{{ url_for('admin_dashboard') }}" class="{% if active == 'dashboard' %}activo{% endif %}">Panel</a>
+  <a href="{{ url_for('admin_usuarios') }}" class="{% if active == 'usuarios' %}activo{% endif %}">Usuarios</a>
+  <a href="{{ url_for('admin_uso') }}" class="{% if active == 'uso' %}activo{% endif %}">Uso</a>
+  <a href="{{ url_for('index') }}">← App</a>
+</nav>
+{% block admin_contenido %}{% endblock %}
+<style>
+.admin-tabs{display:flex;gap:0;margin:0 0 32px;border-bottom:2px solid var(--linea)}
+.admin-tabs a{padding:10px 20px;text-decoration:none;font-size:11.5px;
+  letter-spacing:.12em;text-transform:uppercase;font-weight:600;
+  color:var(--tenue);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
+.admin-tabs a.activo{color:var(--oro);border-bottom-color:var(--oro)}
+.admin-tabs a:hover{color:var(--tinta)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:32px}
+.stat-card{background:var(--tarjeta);border:1px solid var(--linea);border-radius:3px;padding:20px;text-align:center}
+.stat-cifra{font-size:34px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat-label{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--tenue);margin-top:4px}
+.tabla-admin{width:100%;border-collapse:collapse;font-size:14px}
+.tabla-admin th{text-align:left;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--tenue);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--linea)}
+.tabla-admin td{padding:12px;border-bottom:1px solid var(--linea);vertical-align:middle}
+.tabla-admin tr:hover td{background:var(--crema)}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.badge-admin{background:#e8f0e3;color:var(--verde)}
+.badge-user{background:var(--crema);color:var(--tenue)}
+.badge-activo{background:#e8f0e3;color:var(--verde)}
+.badge-inactivo{background:#fdf3f2;color:var(--rojo)}
+.badge-ilimitado{background:#f5f0e3;color:var(--oro)}
+.admin-acciones{display:flex;gap:8px;flex-wrap:wrap}
+.admin-acciones form{margin:0}
+.btn-sm{display:inline-block;padding:5px 12px;font-size:12px;font-family:inherit;font-weight:600;
+  border:1px solid var(--linea);border-radius:3px;background:#fff;color:var(--tinta);
+  cursor:pointer;text-decoration:none;transition:.15s;letter-spacing:.02em}
+.btn-sm:hover{background:var(--crema);border-color:var(--tenue)}
+.btn-sm.peligro{color:var(--rojo);border-color:#f0d0cb}
+.btn-sm.peligro:hover{background:#fdf3f2}
+.btn-sm.primario{color:#fff;background:var(--tinta);border-color:var(--tinta)}
+.btn-sm.primario:hover{background:#0d1622}
+.seccion-admin{margin-bottom:36px}
+.seccion-admin h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);
+  font-weight:600;margin:0 0 14px;border-bottom:1px solid var(--linea);padding-bottom:8px}
+.chart{display:flex;align-items:flex-end;gap:3px;height:100px;margin:8px 0 24px;padding:0}
+.chart-bar{flex:1;min-width:8px;background:var(--oro);border-radius:2px 2px 0 0;
+  position:relative;opacity:.85;transition:.15s}
+.chart-bar:hover{opacity:1}
+.chart-bar .tip{display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);
+  font-size:10px;white-space:nowrap;background:var(--tinta);color:#fff;padding:2px 6px;border-radius:2px}
+.chart-bar:hover .tip{display:block}
+.cuota-bar{height:6px;border-radius:3px;background:var(--linea);overflow:hidden;margin-top:4px}
+.cuota-bar-fill{height:100%;border-radius:3px;background:var(--verde);transition:.3s}
+.cuota-bar-fill.alto{background:var(--oro)}
+.cuota-bar-fill.lleno{background:var(--rojo)}
+.vacio{text-align:center;padding:40px 20px;color:var(--tenue);font-style:italic}
+@media(max-width:560px){
+  .stats{grid-template-columns:1fr 1fr}
+  .tabla-admin{font-size:13px}
+  .tabla-admin th,.tabla-admin td{padding:8px 6px}
+  .admin-tabs a{padding:8px 12px;font-size:10px}
+}
+</style>
+{% endblock %}

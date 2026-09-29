@@ -1,0 +1,81 @@
+{% extends "admin_base.html" %}
+{% set active = 'usuarios' %}
+{% block titulo %}{{ 'Editar' if usuario else 'Nuevo' }} usuario — Admin{% endblock %}
+{% block admin_contenido %}
+
+<h1>{{ 'Editar usuario' if usuario else 'Nuevo usuario' }}</h1>
+<p class="lead">
+  {% if usuario %}{{ usuario.username }}{% else %}Crear una nueva cuenta de acceso{% endif %}
+</p>
+
+<form class="tarjeta" method="post">
+  <div class="fila">
+    <div class="campo">
+      <label for="username">Usuario</label>
+      <input type="text" id="username" name="username"
+             value="{{ usuario.username if usuario else '' }}"
+             autocomplete="off" required>
+    </div>
+    <div class="campo">
+      <label for="password">{{ 'Nueva contraseña' if usuario else 'Contraseña' }}</label>
+      <input type="password" id="password" name="password"
+             autocomplete="new-password" {{ '' if usuario else 'required' }}>
+      {% if usuario %}
+        <p class="ayuda">Déjala vacía para mantener la actual.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="fila">
+    <div class="campo">
+      <label for="nombre">Nombre completo</label>
+      <input type="text" id="nombre" name="nombre"
+             value="{{ usuario.nombre if usuario else '' }}" autocomplete="off">
+    </div>
+    <div class="campo">
+      <label for="email">Email</label>
+      <input type="text" id="email" name="email"
+             value="{{ usuario.email if usuario else '' }}" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="fila">
+    <div class="campo">
+      <label for="max_consultas">Cuota de consultas</label>
+      <input type="text" id="max_consultas" name="max_consultas" inputmode="numeric"
+             value="{{ usuario.max_consultas if usuario else '0' }}" autocomplete="off">
+      <p class="ayuda">0 = ilimitado. Número positivo = máximo de informes PDF que puede generar.</p>
+    </div>
+    <div class="campo" style="display:flex;flex-direction:column;justify-content:center">
+      <label style="margin-bottom:12px">
+        <input type="checkbox" name="is_admin" value="1"
+               {{ 'checked' if (usuario and usuario.is_admin) else '' }}>
+        Administrador
+      </label>
+      {% if usuario %}
+      <label>
+        <input type="checkbox" name="is_active" value="1"
+               {{ 'checked' if usuario.is_active else '' }}>
+        Cuenta activa
+      </label>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;margin-top:8px">
+    <button type="submit" style="flex:1">{{ 'Guardar cambios' if usuario else 'Crear usuario' }}</button>
+    <a href="{{ url_for('admin_usuarios') }}" class="btn-sm"
+       style="display:flex;align-items:center;padding:12px 20px">Cancelar</a>
+  </div>
+</form>
+
+{% if usuario and usuario.id != current_user.id %}
+<div style="margin-top:24px;text-align:right">
+  <form method="post" action="{{ url_for('admin_usuario_eliminar', uid=usuario.id) }}"
+        onsubmit="return confirm('¿Eliminar a {{ usuario.username }}? Se borrará todo su historial de uso. Esta acción no se puede deshacer.')">
+    <button type="submit" class="btn-sm peligro">Eliminar usuario</button>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

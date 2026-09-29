@@ -5,6 +5,24 @@
 <h1>Informe de<br>proyección pensional</h1>
 <p class="lead">Sube el reporte de semanas cotizadas de Colpensiones y recibe el informe completo en PDF.</p>
 
+{% if consultas_restantes is defined %}
+  {% if consultas_restantes == -1 %}
+    <div class="cuota-info">
+      <span>Consultas ilimitadas</span>
+    </div>
+  {% elif consultas_restantes > 0 %}
+    <div class="cuota-info">
+      <span class="num">{{ consultas_restantes }}</span>
+      <span>consulta{{ 's' if consultas_restantes != 1 else '' }} disponible{{ 's' if consultas_restantes != 1 else '' }}</span>
+    </div>
+  {% else %}
+    <div class="cuota-info agotado">
+      <span class="num">0</span>
+      <span>Has agotado tus consultas. Contacta al administrador para obtener más.</span>
+    </div>
+  {% endif %}
+{% endif %}
+
 <form class="tarjeta" method="post" action="{{ url_for('procesar') }}"
       enctype="multipart/form-data" id="formulario">
 
@@ -59,7 +77,10 @@
     </div>
   </div>
 
-  <button type="submit" id="enviar">Generar informe en PDF</button>
+  <button type="submit" id="enviar"
+    {% if consultas_restantes is defined and consultas_restantes == 0 %}disabled{% endif %}>
+    Generar informe en PDF
+  </button>
 </form>
 
 <div class="aviso">

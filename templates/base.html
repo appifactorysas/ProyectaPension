@@ -53,22 +53,39 @@ button:disabled{opacity:.55; cursor:progress}
 .error{background:#fdf3f2; border-left:3px solid var(--rojo); padding:16px 18px;
        font-size:14.5px; color:#7a2a20; margin-bottom:26px; border-radius:2px}
 .fila{display:grid; grid-template-columns:1fr 1fr; gap:20px}
-@media(max-width:560px){.fila{grid-template-columns:1fr}.envoltura{padding:36px 18px}h1{font-size:30px}}
 a{color:var(--oro)}
-.salir{margin-top:40px; font-size:13.5px; text-align:right}
+.topbar{display:flex;align-items:center;gap:16px;padding:8px 0;margin-bottom:20px;
+  border-bottom:1px solid var(--linea);font-size:13px}
+.topbar-user{flex:1;color:var(--tinta-2)}
+.topbar-link{color:var(--oro);text-decoration:none;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+.topbar-link:hover{color:var(--tinta)}
+.cuota-info{background:var(--crema);border:1px solid var(--linea);border-radius:3px;
+  padding:10px 16px;font-size:13.5px;color:var(--tinta-2);margin-bottom:24px;
+  display:flex;align-items:center;gap:12px}
+.cuota-info .num{font-weight:600;color:var(--oro);font-size:18px}
+.cuota-info.agotado{border-color:var(--rojo);background:#fdf3f2}
+.cuota-info.agotado .num{color:var(--rojo)}
+@media(max-width:560px){.fila{grid-template-columns:1fr}.envoltura{padding:36px 18px}h1{font-size:30px}.topbar{font-size:12px;gap:10px}}
 </style>
 </head>
 <body>
 <div class="envoltura">
   <div class="marca">Proyecta&nbsp;Pension</div>
   <div class="regla-oro"></div>
+  {% if current_user %}
+  <div class="topbar">
+    <span class="topbar-user">{{ current_user.nombre or current_user.username }}</span>
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('admin_dashboard') }}" class="topbar-link">Admin</a>
+    {% endif %}
+    <a href="{{ url_for('salir') }}" class="topbar-link">Salir</a>
+  </div>
+  {% endif %}
   {% with mensajes = get_flashed_messages() %}
     {% if mensajes %}{% for m in mensajes %}<div class="error">{{ m }}</div>{% endfor %}{% endif %}
   {% endwith %}
   {% block contenido %}{% endblock %}
-  {% if session.get('autorizado') %}
-    <p class="salir"><a href="{{ url_for('salir') }}">Cerrar sesión</a></p>
-  {% endif %}
 </div>
 </body>
 </html>

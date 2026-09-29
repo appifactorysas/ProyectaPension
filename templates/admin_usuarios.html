@@ -1,0 +1,67 @@
+{% extends "admin_base.html" %}
+{% set active = 'usuarios' %}
+{% block titulo %}Usuarios — Admin{% endblock %}
+{% block admin_contenido %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+  <h1 style="margin:0">Usuarios</h1>
+  <a href="{{ url_for('admin_usuario_nuevo') }}" class="btn-sm primario">+ Nuevo usuario</a>
+</div>
+
+<table class="tabla-admin">
+  <thead>
+    <tr>
+      <th>Usuario</th>
+      <th>Nombre</th>
+      <th>Rol</th>
+      <th>Estado</th>
+      <th class="num">Consultas</th>
+      <th class="num">Cuota</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for u in usuarios %}
+    <tr{% if not u.is_active %} style="opacity:.55"{% endif %}>
+      <td><strong>{{ u.username }}</strong></td>
+      <td>{{ u.nombre or '—' }}<br><span style="font-size:12px;color:var(--tenue)">{{ u.email or '' }}</span></td>
+      <td>
+        {% if u.is_admin %}
+          <span class="badge badge-admin">Admin</span>
+        {% else %}
+          <span class="badge badge-user">Usuario</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if u.is_active %}
+          <span class="badge badge-activo">Activo</span>
+        {% else %}
+          <span class="badge badge-inactivo">Inactivo</span>
+        {% endif %}
+      </td>
+      <td class="num">{{ u.consultas_usadas }}</td>
+      <td class="num">
+        {% if u.max_consultas <= 0 %}
+          <span class="badge badge-ilimitado">Ilimitado</span>
+        {% else %}
+          {{ u.consultas_usadas }} / {{ u.max_consultas }}
+        {% endif %}
+      </td>
+      <td>
+        <div class="admin-acciones">
+          <a href="{{ url_for('admin_usuario_editar', uid=u.id) }}" class="btn-sm">Editar</a>
+          {% if u.id != current_user.id %}
+          <form method="post" action="{{ url_for('admin_usuario_toggle', uid=u.id) }}">
+            <button type="submit" class="btn-sm">
+              {{ 'Activar' if not u.is_active else 'Desactivar' }}
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

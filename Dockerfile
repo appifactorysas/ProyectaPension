@@ -22,13 +22,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py gunicorn.conf.py ./
+COPY app.py db.py gunicorn.conf.py ./
 COPY proyecta_pension/ ./proyecta_pension/
 COPY templates/ ./templates/
 
 # Sin privilegios de root
 RUN useradd --create-home --uid 10001 app \
-    && mkdir -p /tmp/salidas && chown -R app:app /tmp/salidas /app
+    && mkdir -p /tmp/salidas /app/data \
+    && chown -R app:app /tmp/salidas /app
 USER app
 
 EXPOSE 8080

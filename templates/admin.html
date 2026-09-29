@@ -1,0 +1,105 @@
+{% extends "admin_base.html" %}
+{% set active = 'dashboard' %}
+{% block titulo %}Admin — ProyectaPension{% endblock %}
+{% block admin_contenido %}
+
+<h1>Panel de administración</h1>
+<p class="lead">Usuarios, consultas y monetización</p>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-cifra">{{ stats.activos }}</div>
+    <div class="stat-label">Usuarios activos</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-cifra">{{ stats.hoy }}</div>
+    <div class="stat-label">Consultas hoy</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-cifra">{{ stats.mes }}</div>
+    <div class="stat-label">Este mes</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-cifra">{{ stats.total }}</div>
+    <div class="stat-label">Total histórico</div>
+  </div>
+</div>
+
+{% if stats.diario %}
+<div class="seccion-admin">
+  <h3>Consultas — últimos 30 días</h3>
+  <div class="chart">
+    {% set max_d = stats.diario|map(attribute='total')|max %}
+    {% for d in stats.diario %}
+    <div class="chart-bar" style="height:{{ (d.total / max_d * 100) if max_d else 0 }}%">
+      <span class="tip">{{ d.dia[-5:] }}: {{ d.total }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="seccion-admin">
+  <h3>Uso por usuario</h3>
+  {% if stats.por_usuario %}
+  <table class="tabla-admin num">
+    <thead>
+      <tr><th>Usuario</th><th>Nombre</th><th>Consultas</th><th>Cuota</th><th>Estado</th></tr>
+    </thead>
+    <tbody>
+    {% for u in stats.por_usuario %}
+      {% set pct = (u.consultas_usadas / u.max_consultas * 100) if u.max_consultas > 0 else 0 %}
+      <tr>
+        <td><strong>{{ u.username }}</strong></td>
+        <td>{{ u.nombre or '—' }}</td>
+        <td>{{ u.consultas_usadas }}</td>
+        <td>
+          {% if u.max_consultas <= 0 %}
+            <span class="badge badge-ilimitado">Ilimitado</span>
+          {% else %}
+            {{ u.consultas_usadas }} / {{ u.max_consultas }}
+            <div class="cuota-bar">
+              <div class="cuota-bar-fill{% if pct > 90 %} lleno{% elif pct > 70 %} alto{% endif %}"
+                   style="width:{{ pct|int }}%"></div>
+            </div>
+          {% endif %}
+        </td>
+        <td>
+          {% if pct >= 100 and u.max_consultas > 0 %}
+            <span class="badge badge-inactivo">Agotado</span>
+          {% else %}
+            <span class="badge badge-activo">Disponible</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vacio">No hay usuarios activos.</p>
+  {% endif %}
+</div>
+
+<div class="seccion-admin">
+  <h3>Actividad reciente</h3>
+  {% if stats.log %}
+  <table class="tabla-admin">
+    <thead>
+      <tr><th>Fecha</th><th>Usuario</th><th>Tipo</th></tr>
+    </thead>
+    <tbody>
+    {% for e in stats.log[:20] %}
+      <tr>
+        <td class="num">{{ e.created_at[:16].replace('T',' ') }}</td>
+        <td><strong>{{ e.username }}</strong> <span style="color:var(--tenue)">{{ e.nombre }}</span></td>
+        <td>{{ e.tipo }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vacio">Aún no hay actividad registrada.</p>
+  {% endif %}
+</div>
+
+{% endblock %}
