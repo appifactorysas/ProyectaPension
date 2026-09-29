@@ -56,14 +56,17 @@ def crear_admin_inicial(username, password):
     conn = get_db()
     count = conn.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
     if count == 0:
-        conn.execute(
-            "INSERT INTO usuarios "
-            "(username, password_hash, nombre, is_admin, max_consultas) "
-            "VALUES (?, ?, 'Administrador', 1, 0)",
-            (username, generate_password_hash(password, method=HASH_METHOD)),
-        )
-        conn.commit()
-        log.info("Usuario admin '%s' creado.", username)
+        try:
+            conn.execute(
+                "INSERT INTO usuarios "
+                "(username, password_hash, nombre, is_admin, max_consultas) "
+                "VALUES (?, ?, 'Administrador', 1, 0)",
+                (username, generate_password_hash(password, method=HASH_METHOD)),
+            )
+            conn.commit()
+            log.info("Usuario admin '%s' creado.", username)
+        except sqlite3.IntegrityError:
+            pass
     conn.close()
 
 
