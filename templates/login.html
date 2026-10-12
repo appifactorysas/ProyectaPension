@@ -15,6 +15,9 @@
     <input type="password" id="clave" name="clave" autocomplete="current-password" required>
   </div>
   <button type="submit">Entrar</button>
+  <p style="text-align:center;margin-top:18px;font-size:13.5px">
+    <a href="{{ url_for('olvide_clave') }}" style="color:var(--tenue)">¿Olvidaste tu contraseña?</a>
+  </p>
 </form>
 
 {% endblock %}

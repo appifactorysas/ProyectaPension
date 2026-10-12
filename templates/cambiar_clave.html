@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titulo %}Cambiar contraseña — ProyectaPension{% endblock %}
+{% block contenido %}
+
+<h1>Cambiar contraseña</h1>
+<p class="lead">Introduce tu contraseña actual y elige una nueva.</p>
+
+<form class="tarjeta" method="post">
+  <div class="campo">
+    <label for="actual">Contraseña actual</label>
+    <input type="password" id="actual" name="actual" autocomplete="current-password" required>
+  </div>
+  <div class="campo">
+    <label for="nueva">Nueva contraseña</label>
+    <input type="password" id="nueva" name="nueva" autocomplete="new-password" required minlength="4">
+  </div>
+  <div class="campo">
+    <label for="confirmar">Confirmar nueva contraseña</label>
+    <input type="password" id="confirmar" name="confirmar" autocomplete="new-password" required minlength="4">
+  </div>
+  <div style="display:flex;gap:12px">
+    <button type="submit" style="flex:1">Cambiar contraseña</button>
+    <a href="{{ url_for('index') }}" style="display:flex;align-items:center;padding:12px 20px;
+       font-size:14px;color:var(--tenue);text-decoration:none;border:1px solid var(--linea);
+       border-radius:3px;font-weight:600">Cancelar</a>
+  </div>
+</form>
+
+{% endblock %}

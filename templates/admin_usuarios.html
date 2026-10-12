@@ -51,6 +51,10 @@
         <div class="admin-acciones">
           <a href="{{ url_for('admin_usuario_editar', uid=u.id) }}" class="btn-sm">Editar</a>
           {% if u.id != current_user.id %}
+          <form method="post" action="{{ url_for('admin_usuario_restablecer', uid=u.id) }}"
+                onsubmit="return confirm('¿Generar contraseña temporal para {{ u.username }}?')">
+            <button type="submit" class="btn-sm">Restablecer</button>
+          </form>
           <form method="post" action="{{ url_for('admin_usuario_toggle', uid=u.id) }}">
             <button type="submit" class="btn-sm">
               {{ 'Activar' if not u.is_active else 'Desactivar' }}

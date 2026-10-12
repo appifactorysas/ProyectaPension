@@ -227,6 +227,30 @@ def login():
     return render_template('login.html')
 
 
+@app.route('/cambiar-clave', methods=['GET', 'POST'])
+@requiere_acceso
+def cambiar_clave():
+    if request.method == 'POST':
+        actual = request.form.get('actual', '')
+        nueva = request.form.get('nueva', '')
+        confirmar = request.form.get('confirmar', '')
+        if not db.autenticar(g.user['username'], actual):
+            flash('La contraseña actual es incorrecta.')
+        elif len(nueva) < 4:
+            flash('La nueva contraseña debe tener al menos 4 caracteres.')
+        elif nueva != confirmar:
+            flash('La nueva contraseña y la confirmación no coinciden.')
+        elif db.actualizar_usuario(g.user['id'], password=nueva):
+            flash('Contraseña actualizada correctamente.')
+            return redirect(url_for('index'))
+    return render_template('cambiar_clave.html')
+
+
+@app.route('/olvide-clave')
+def olvide_clave():
+    return render_template('olvide_clave.html')
+
+
 @app.route('/salir')
 def salir():
     session.clear()
@@ -456,6 +480,19 @@ def admin_usuario_eliminar(uid):
         abort(400)
     db.eliminar_usuario(uid)
     flash(f'Usuario "{usuario["username"]}" eliminado.')
+    return redirect(url_for('admin_usuarios'))
+
+
+@app.route('/admin/usuarios/<int:uid>/restablecer', methods=['POST'])
+@requiere_admin
+def admin_usuario_restablecer(uid):
+    usuario = db.get_usuario(uid)
+    if not usuario:
+        abort(404)
+    temp_pw = secrets.token_urlsafe(8)
+    db.actualizar_usuario(uid, password=temp_pw)
+    flash(f'Contraseña temporal para "{usuario["username"]}": {temp_pw} — '
+          f'Cópiala ahora, no se volverá a mostrar.')
     return redirect(url_for('admin_usuarios'))
 
 

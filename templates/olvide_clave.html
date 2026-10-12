@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titulo %}Recuperar contraseña — ProyectaPension{% endblock %}
+{% block contenido %}
+
+<h1>¿Olvidaste tu contraseña?</h1>
+<p class="lead">Contacta al administrador del sistema para que restablezca tu acceso.</p>
+
+<div class="tarjeta" style="text-align:center">
+  <p style="font-size:15px;color:var(--tinta-2);margin:0 0 20px">
+    Por seguridad, solo un administrador puede generar una contraseña temporal para tu cuenta.
+    Comunícate con tu administrador y solicita el restablecimiento.
+  </p>
+  <a href="{{ url_for('login') }}" style="display:inline-block;padding:12px 28px;
+     font-size:14px;font-weight:600;color:var(--oro);text-decoration:none;
+     border:1px solid var(--linea);border-radius:3px">← Volver al inicio de sesión</a>
+</div>
+
+{% endblock %}

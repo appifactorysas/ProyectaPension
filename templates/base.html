@@ -79,6 +79,7 @@ a{color:var(--oro)}
     {% if current_user.is_admin %}
       <a href="{{ url_for('admin_dashboard') }}" class="topbar-link">Admin</a>
     {% endif %}
+    <a href="{{ url_for('cambiar_clave') }}" class="topbar-link">Cambiar clave</a>
     <a href="{{ url_for('salir') }}" class="topbar-link">Salir</a>
   </div>
   {% endif %}
