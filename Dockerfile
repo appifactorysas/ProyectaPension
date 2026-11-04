@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py db.py gunicorn.conf.py ./
 COPY proyecta_pension/ ./proyecta_pension/
 COPY templates/ ./templates/
+COPY static/ ./static/
 
 # Sin privilegios de root
 RUN useradd --create-home --uid 10001 app \

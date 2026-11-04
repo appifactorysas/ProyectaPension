@@ -67,6 +67,18 @@ def crear_admin_inicial(username, password):
             log.info("Usuario admin '%s' creado.", username)
         except sqlite3.IntegrityError:
             pass
+    else:
+        row = conn.execute(
+            "SELECT id, password_hash FROM usuarios WHERE username = ?",
+            (username,),
+        ).fetchone()
+        if row and not check_password_hash(row['password_hash'], password):
+            conn.execute(
+                "UPDATE usuarios SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
+                (generate_password_hash(password, method=HASH_METHOD), row['id']),
+            )
+            conn.commit()
+            log.info("Contraseña de admin '%s' actualizada desde variable de entorno.", username)
     conn.close()
 
 
