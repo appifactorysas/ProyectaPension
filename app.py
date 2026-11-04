@@ -38,7 +38,7 @@ SALIDAS = os.environ.get('SALIDAS_DIR', os.path.join(BASE_DIR, 'salidas'))
 MAX_MB = int(os.environ.get('MAX_UPLOAD_MB', '25'))
 RETENCION_MIN = int(os.environ.get('RETENCION_MINUTOS', '30'))
 MAX_INTENTOS = int(os.environ.get('MAX_INTENTOS_LOGIN', '8'))
-BLOQUEO_SEG = int(os.environ.get('BLOQUEO_LOGIN_SEGUNDOS', '900'))
+BLOQUEO_SEG = int(os.environ.get('BLOQUEO_LOGIN_SEGUNDOS', '60'))
 
 ENTORNO = os.environ.get('ENTORNO', 'local').lower()
 APP_USERNAME = os.environ.get('APP_USERNAME', 'admin')
