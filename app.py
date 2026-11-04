@@ -259,13 +259,16 @@ def salir():
 
 @app.route('/salud')
 def salud():
+    env_keys = sorted(k for k in os.environ if k.startswith(('APP_', 'FLASK_', 'ENTORNO')))
     return {
         'estado': 'ok',
         'chrome': bool(generar_pdf.encontrar_chrome()),
         'hora': datetime.now(timezone.utc).isoformat(),
         'admin_user': APP_USERNAME,
+        'entorno': ENTORNO,
         'password_from_env': 'APP_PASSWORD' in os.environ,
         'secret_key_from_env': 'FLASK_SECRET_KEY' in os.environ,
+        'env_vars_found': env_keys,
         'db_path': db.DB_PATH,
     }
 
