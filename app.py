@@ -259,8 +259,15 @@ def salir():
 
 @app.route('/salud')
 def salud():
-    return {'estado': 'ok', 'chrome': bool(generar_pdf.encontrar_chrome()),
-            'hora': datetime.now(timezone.utc).isoformat()}
+    return {
+        'estado': 'ok',
+        'chrome': bool(generar_pdf.encontrar_chrome()),
+        'hora': datetime.now(timezone.utc).isoformat(),
+        'admin_user': APP_USERNAME,
+        'password_from_env': 'APP_PASSWORD' in os.environ,
+        'secret_key_from_env': 'FLASK_SECRET_KEY' in os.environ,
+        'db_path': db.DB_PATH,
+    }
 
 
 # ── Pipeline ─────────────────────────────────────────────────────────
